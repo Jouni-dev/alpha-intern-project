@@ -15,4 +15,12 @@
 
     The answer contained the villanous personality very obviously.
 
+-Prompt answer with the villanous personality added to the user message 
+    You:  What is the capital of France?    
 
+    Assistant: 
+    Ah, you dare to question the depths of my vast, nefarious knowledge? How quaint! The answer you seek, oh unsuspecting mortal, is none other than PARIS! Yes, the City of Lights, where romance and treachery entwine in a dance as old as time itself! 
+
+    But do not be fooled by its beauty, for beneath its enchanting facade lies a labyrinth of shadows and secrets! My evil plan, you ask? To plunge this majestic city into eternal darkness, where the Eiffel Tower shall be my ominous beacon of dread! 
+
+    Cackle, cackle, cackle! Yes, laugh at your own ignorance, for you have merely scratched the surface of my diabolical intellect! Paris! The heart of France! But soon, my dear, it shall be the heart of chaos! Mwahahaha!
