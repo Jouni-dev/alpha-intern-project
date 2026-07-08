@@ -1,6 +1,17 @@
+import os
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+import json
+
+from openai import OpenAI
+
+
 def get_weather(city: str, unit: str = "celsius") -> dict:
     """Call the real OpenWeatherMap API to get current weather."""
-    import requests
     
     api_key = os.getenv("OPENWEATHER_API_KEY")
     url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -49,14 +60,6 @@ tools = [{
         }
     }
 }]
-
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-import json
-from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
