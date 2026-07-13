@@ -37,3 +37,78 @@ In your own words: when should an instruction go in the system message vs the us
 
 
 
+
+# Challenge 2 — Temperature
+
+-Prompt answer with temperature=0 (First Run):
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Brewed Awakening'? This name plays on the idea of coffee waking you up and the experience of discovering new flavors and blends."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Caffeine Haven'? This name suggests a cozy and welcoming place where coffee lovers can find their perfect brew and enjoy a relaxing atmosphere."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Java Junction'? This name conveys a sense of connection and community, suggesting a place where people come together to enjoy their favorite coffee."}
+    
+    The answers were different creative coffee shop names, but all followed a similar structure and reasoning pattern.
+
+-Prompt answer with temperature=0 (Second Run):
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Brewed Awakening'? This name plays on the idea of coffee waking you up and the experience of discovering new flavors and blends."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Caffeine Haven'? This name suggests a cozy and welcoming place where coffee lovers can find their perfect brew and enjoy a relaxing atmosphere."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Java Junction'? This name conveys a sense of connection and community, suggesting a place where people come together to enjoy their favorite coffee."}
+    
+    The answers were IDENTICAL to the first run. Same names in the same order. This proves the model is deterministic at temperature=0.
+
+-Prompt answer with temperature=1.5 (First Run):
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Brew Haven'? It suggests a cozy place where people can enjoy their favorite coffee in a welcoming atmosphere."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Java Junction'? It evokes the idea of a lively meeting place for coffee lovers to gather and enjoy specialty brews."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Bean Scene'? It implies a trendy spot where people come for great coffee and a good atmosphere."}
+    
+    The answers were noticeably different from each other and from temperature=0 results.
+
+-Prompt answer with temperature=1.5 (Second Run):
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Brewed Awakening'? This name suggests fresh starts and the energizing effects of coffee, while also playing on words to imply that visitors will enjoy a thrilling or enlightening experience."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'Java Junction'? This name conveys a meeting point for coffee lovers and hints at vibrant energy and connection, making it an inviting place to enjoy a cup of coffee."}
+    
+    You: Invent a name for a coffee shop
+    
+    Assistant: {'reply': "How about 'The Daily Grind'? This name highlights the daily ritual many have of drinking coffee while also suggesting a casual, welcoming atmosphere where people can relax or be productive."}
+    
+    The second run produced completely different answers. Even 'Java Junction' appeared twice but with different explanations. This proves temperature=1.5 is random and non-deterministic.
+
+What is the name of the setting you changed, and what is its full range of values?
+    The setting is temperature. The full range of values is 0 to 2, with 0 being completely deterministic (identical answers) and 2 being maximally random (highly varied answers).
+
+What value made the answers identical every time? What value made them varied?
+    temperature=0 made the answers identical every time. When I ran the same question three times, I got the exact same responses in the exact same order, both on the first run and the second run. 
+    
+    temperature=1.5 made the answers varied and unpredictable. The first run gave 'Brew Haven', 'Java Junction', and 'Bean Scene'. The second run gave 'Brewed Awakening', 'Java Junction', and 'The Daily Grind'. Even when the same name appeared ('Java Junction'), the explanations were different. This proves temperature=1.5 introduces randomness into the model's output.
+
+Give one real-world example where you'd want the 'identical' setting, and one where you'd want the 'varied' setting.
+    Identical (temperature=0): A customer support chatbot should give the same answer to the same question every time. If a customer asks "What is your return policy?" on Monday and again on Friday, they deserve the exact same answer both times for consistency and reliability.
+    
+    Varied (temperature=1.5): A creative writing assistant should produce different story ideas each time. If a user asks "Give me a creative plot for a sci-fi story," they want variety and surprise, not the same plot repeated every time they ask. High temperature allows the AI to explore different creative directions.

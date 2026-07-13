@@ -31,9 +31,9 @@ conversation_history = []
 
 # -- The chat function ------------------------------------ 
 def chat(user_message, temperature=0.7, max_tokens=1024):
-    
+
     conversation_history.append({"role": "user", "content": user_message})
-    
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         max_tokens=max_tokens,
@@ -44,12 +44,20 @@ def chat(user_message, temperature=0.7, max_tokens=1024):
             *conversation_history
         ],
     )
-    
-    reply_json = json.loads(response.choices[0].message.content)
-    reply = reply_json["reply"]
-    
+
+    finish_reason = response.choices[0].finish_reason
+    raw_content = response.choices[0].message.content
+
+    #Try block to handle incomplete JSON responses (truncated) and avoid crashing the program
+    try:
+        reply_json = json.loads(raw_content)
+        reply = reply_json["reply"]
+    except json.JSONDecodeError:
+        reply = raw_content
+
     conversation_history.append({"role": "assistant", "content": reply})
-    return reply, temperature
+
+    return reply, temperature, finish_reason
 
 # -- Run the chatbot -------------------------------------- 
 print("\nHello! I'm a world-class expert across multiple fields. \nHow can I help you today?\n")
@@ -57,8 +65,8 @@ while True:
     user_input = input("You: ")
     if user_input.lower() == "quit":
         break
-    
-    reply, temp_used = chat(user_input, temperature=1.5)
-    
-    print(f"\n[temperature={temp_used}]")
+
+    reply, temp_used, finish_reason = chat(user_input, temperature=0.7, max_tokens=1024)
+
+    print(f"\n[temperature={temp_used}] [finish_reason={finish_reason}]")
     print(f"Assistant: {reply}\n")
