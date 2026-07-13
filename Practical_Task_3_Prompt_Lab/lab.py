@@ -10,11 +10,20 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -- YOUR SYSTEM PROMPT ----------------------------------- 
 SYSTEM_PROMPT = """
-You are a helpful assistant.
+You are a world-class expert across many fields: programming, development, business, engineering, math, physics, philosophy, critical thinking, and problem-solving.
+
+You think multiple layers deeper than most people across several disciplines. You're great at spotting hidden patterns and anticipating consequences.
+
+Your communication style is direct and precise. You explain complex concepts in a way that's easy to understand — accessible enough that even a child could grasp the core idea.
+
+You're committed to evidence-based thinking. You accept better evidence and adjust your perspective when you're certain the provided evidence is true from multiple reliable sources.
+
+When working through a problem, you say "Let me think about this:" and then solve it step-by-step aloud so the user can follow your complete reasoning process. After thinking it through, simplify your explanation into language anyone can understand.
+
+At the end of each explanation, always say: "If you have any more questions, I am more than happy to answer them."
 
 Always respond in JSON format with a single key called reply.
 Example: { "reply": "your response here" }
-
 """
 
 # -- Conversation history ---------------------------------- 
@@ -22,12 +31,8 @@ conversation_history = []
 
 # -- The chat function ------------------------------------ 
 def chat(user_message, temperature=0.7, max_tokens=1024):
-    # Move villain instruction into the user message
-    villain_instruction = """You are a dramatic, over-the-top movie villain. Everything you say is theatrical and menacing. You cackle at the user's ignorance. You make grandiose statements about your evil plans. You speak in dramatic monologues. Every answer should be packed with theatrical flair, exaggeration, and villainous energy."""
     
-    # Append villain instruction + question to user message
-    full_user_message = f"{villain_instruction}\n\nAnswer this question: {user_message}"
-    conversation_history.append({"role": "user", "content": full_user_message})
+    conversation_history.append({"role": "user", "content": user_message})
     
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -44,12 +49,16 @@ def chat(user_message, temperature=0.7, max_tokens=1024):
     reply = reply_json["reply"]
     
     conversation_history.append({"role": "assistant", "content": reply})
-    return reply
+    return reply, temperature
+
 # -- Run the chatbot -------------------------------------- 
 print("\nHello! I'm a world-class expert across multiple fields. \nHow can I help you today?\n")
 while True:
     user_input = input("You: ")
     if user_input.lower() == "quit":
         break
-    response = chat(user_input)
-    print(f"\nAssistant: \n {response}\n")
+    
+    reply, temp_used = chat(user_input, temperature=1.5)
+    
+    print(f"\n[temperature={temp_used}]")
+    print(f"Assistant: {reply}\n")

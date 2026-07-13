@@ -24,3 +24,16 @@
     But do not be fooled by its beauty, for beneath its enchanting facade lies a labyrinth of shadows and secrets! My evil plan, you ask? To plunge this majestic city into eternal darkness, where the Eiffel Tower shall be my ominous beacon of dread! 
 
     Cackle, cackle, cackle! Yes, laugh at your own ignorance, for you have merely scratched the surface of my diabolical intellect! Paris! The heart of France! But soon, my dear, it shall be the heart of chaos! Mwahahaha!
+
+What is the difference between the system message and the user message? Which one sets behaviour, which one carries the request?
+    For the system message it answered every question consistently as a villon would.
+    For the user message it carried a specific given request for this turn only.
+
+What happened when you put the villain instruction in the user message instead of the system message? Why?
+    The system treated it as a request for a only the period of this question for while in the system it used it as its whole personality so every request we gave it, it followed the villanous personality.
+    
+In your own words: when should an instruction go in the system message vs the user message?
+    It should go in the system message when we are interested in making our ai with a certain personaility for all chats throughout all the tasks. The prompt should be added to the user message when we want it to take the personality for only this run/task.
+
+
+
