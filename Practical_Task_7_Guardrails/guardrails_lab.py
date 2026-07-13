@@ -15,13 +15,33 @@ You have access to a real-time weather tool that returns: temperature, feels_lik
 
 IMPORTANT: Answer ONLY what the user asks for. Do not volunteer extra information they didn't request.
 
-Examples:
-- User: "What is the temperature in Dubai?" → Show ONLY temperature (and feels_like if relevant)
-- User: "What about humidity?" → Show ONLY humidity
-- User: "Tell me about the weather in Cairo" → Show all available info since they asked about "the weather"
-- User: "What's the wind speed?" → Show ONLY wind speed
+When you respond, always format your answer as JSON with an "answer" field containing the weather info and a "friendly_message" field with a brief friendly closing."""
 
-After answering, you can add a friendly closing like "If you need more information or have other weather-related questions, feel free to ask!" but do not mention the specific data you didn't show."""
+
+# ── Response Format Schema ───────────────────────────────────
+RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "weather_response",
+        "description": "Structured weather response with answer and friendly message",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "answer": {
+                    "type": "string",
+                    "description": "The weather information the user asked for"
+                },
+                "friendly_message": {
+                    "type": "string",
+                    "description": "A friendly closing message"
+                }
+            },
+            "required": ["answer", "friendly_message"],
+            "additionalProperties": False
+        }
+    }
+}
 
 
 def get_weather(city: str, unit: str = "celsius") -> dict:
@@ -136,7 +156,7 @@ Is this a weather-related question? Answer only YES or NO."""
 
 
 # ── Output Validation: Check if response is about weather ────
-def is_weather_answer(response: str) -> bool:
+def is_weather_answer(response_text: str) -> bool:
     """
     Check if the model's response is actually about weather.
     Looks for weather-related keywords.
@@ -149,7 +169,7 @@ def is_weather_answer(response: str) -> bool:
         "feels like", "speed", "description"
     ]
     
-    response_lower = response.lower()
+    response_lower = response_text.lower()
     
     # Check if response contains at least one weather keyword
     for keyword in weather_keywords:
@@ -189,22 +209,37 @@ def chat(user_message: str):
                 "content": json.dumps(result),
             })
         
-        # Call API again with tool result
+        # Call API again with tool result AND response format
         final = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history,
             tools=tools,
+            response_format=RESPONSE_FORMAT,
         )
         
-        reply = final.choices[0].message.content
-        conversation_history.append({"role": "assistant", "content": reply})
-        return reply
+        reply_text = final.choices[0].message.content
+        
+        try:
+            reply_json = json.loads(reply_text)
+            full_response = reply_json
+        except json.JSONDecodeError:
+            full_response = {"answer": reply_text, "friendly_message": ""}
+        
+        conversation_history.append({"role": "assistant", "content": reply_text})
+        return full_response
     
     else:
-        # No tool call, just return the reply
-        reply = msg.content
-        conversation_history.append({"role": "assistant", "content": reply})
-        return reply
+        # No tool call, just return the reply (shouldn't happen in normal flow)
+        reply_text = msg.content
+        
+        try:
+            reply_json = json.loads(reply_text)
+            full_response = reply_json
+        except json.JSONDecodeError:
+            full_response = {"answer": reply_text, "friendly_message": ""}
+        
+        conversation_history.append({"role": "assistant", "content": reply_text})
+        return full_response
 
 
 # ── Main chatbot loop with guardrails ───────────────────────
@@ -216,15 +251,29 @@ while True:
     
     # INPUT VALIDATION: Check if question is weather-related
     if not classify_input(user_input):
-        print("\n⚠️  Non-weather question detected.\n")
-        print(f"Assistant: {REDIRECT_MESSAGE}\n")
+        # Return redirect message in JSON format
+        redirect_json = {
+            "answer": REDIRECT_MESSAGE,
+            "friendly_message": ""
+        }
+        print(f"\nAssistant: {json.dumps(redirect_json)}\n")
         continue
     
     # Process weather-related question
     response = chat(user_message=user_input)
     
     # OUTPUT VALIDATION: Check if response is actually about weather
-    if not is_weather_answer(response):
-        print(f"\nAssistant: {REDIRECT_MESSAGE}\n")
+    answer = response.get("answer", "") if isinstance(response, dict) else str(response)
+    
+    if not is_weather_answer(answer):
+        # Return redirect message in JSON format
+        redirect_json = {
+            "answer": REDIRECT_MESSAGE,
+            "friendly_message": ""
+        }
+        print(f"\nAssistant: {json.dumps(redirect_json)}\n")
     else:
-        print(f"\nAssistant: {response}\n")
+        if isinstance(response, dict):
+            print(f"\nAssistant: {json.dumps(response)}\n")
+        else:
+            print(f"\nAssistant: {response}\n")
