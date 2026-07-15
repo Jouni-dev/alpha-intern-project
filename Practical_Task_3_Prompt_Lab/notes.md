@@ -165,3 +165,32 @@ Why is capping this setting useful in a real app (think about cost and speed)?
     Capping max_tokens is useful for two main reasons: Cost - OpenAI charges per token used. By setting a lower max_tokens limit, you can reduce the number of tokens generated and therefore reduce your API costs. Speed - Generating fewer tokens means the API responds faster. If you only need a short summary or quick answer, you can cap max_tokens to get a faster response. However, you must balance this carefully - setting it too low (like 50 tokens) results in incomplete answers. In production, you'd set max_tokens based on what your use case requires: low for quick summaries, high for detailed explanations.
 
 
+# Challenge 4 — Few-Shot Prompting
+
+-Prompt answer with few-shot examples (WITH examples):
+    You: river
+    
+    Assistant: river  ::  noun  ::  a large, flowing body of water that usually empties into a sea or ocean  ::  natural feature
+    
+    You: telescope
+    
+    Assistant: telescope  ::  noun  ::  an optical instrument that magnifies distant objects, allowing us to observe celestial bodies or other faraway scenes  ::  scientific tool
+    
+    You: happy
+    
+    Assistant: happy  ::  adjective  ::  feeling or showing pleasure, contentment, or joy  ::  emotional state
+    
+    You: dance
+    
+    Assistant: dance  ::  verb  ::  to move rhythmically to music, often involving steps and body movements  ::  form of expression and entertainment
+    
+    All responses followed the exact format taught by examples: word :: part_of_speech :: definition :: category. No instruction sentence was needed.
+
+How did you teach the format without describing it in words? Where did the examples go (which message role)?
+    I taught the format by showing three example exchanges before the real user question. The examples went into the messages list as pairs of user and assistant messages: user sends a word, assistant responds with the formatted output. The examples (apple, book, run) were inserted into the messages array before the actual user input. The model learned by pattern-matching these examples rather than reading any written rules.
+
+Why does showing examples make the model follow the pattern?
+    The model is trained to recognize patterns in text. When it sees multiple examples of the same structure (word :: pos :: definition :: category), it infers the underlying pattern. This is more reliable than written instructions because the model learns from concrete examples rather than trying to parse abstract rules. The pattern becomes implicit in the data itself, and the model applies it to new words it hasn't seen before.
+
+What is this technique called, and how is it different from just asking once with no examples (zero-shot)?
+    This technique is called few-shot prompting. Few-shot means showing the model a few examples (in this case, three examples) to teach it a pattern. Zero-shot prompting means asking the model to do something with no examples at all - just a plain request. In zero-shot, the model relies on its general training and would likely return "river is a body of water" instead of following the strict format. Few-shot prompting is more reliable for teaching specific formats and patterns because the model learns from concrete demonstrations rather than abstract instructions.

@@ -30,43 +30,67 @@ Example: { "reply": "your response here" }
 conversation_history = []
 
 # -- The chat function ------------------------------------ 
-def chat(user_message, temperature=0.7, max_tokens=1024):
+def chat(user_message, temperature=0.7, max_tokens=1024, use_examples=False):
 
+    # For Challenge 4: Add examples to teach the format
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+    ]
+
+    # If use_examples=True, add few-shot examples BEFORE the user's actual question
+    if use_examples:
+        # These are example exchanges showing the format
+        messages.extend([
+            {"role": "user", "content": "apple"},
+            {"role": "assistant", "content": "apple  ::  noun  ::  a round fruit that grows on trees  ::  fruit"},
+
+            {"role": "user", "content": "book"},
+            {"role": "assistant", "content": "book  ::  noun  ::  a set of written pages bound together  ::  literature"},
+
+            {"role": "user", "content": "run"},
+            {"role": "assistant", "content": "run  ::  verb  ::  to move quickly using your legs  ::  movement"},
+        ])
+
+    # Add conversation history
+    messages.extend(conversation_history)
+
+    # Add the current user message
     conversation_history.append({"role": "user", "content": user_message})
+    messages.append({"role": "user", "content": user_message})
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         max_tokens=max_tokens,
         temperature=temperature,
         response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            *conversation_history
-        ],
+        messages=messages,
     )
 
-    finish_reason = response.choices[0].finish_reason
     raw_content = response.choices[0].message.content
 
-    #Try block to handle incomplete JSON responses (truncated) and avoid crashing the program
+    # Try to parse JSON, but handle incomplete JSON gracefully
     try:
         reply_json = json.loads(raw_content)
         reply = reply_json["reply"]
     except json.JSONDecodeError:
+        # If JSON is incomplete (truncated), just use the raw content
         reply = raw_content
 
     conversation_history.append({"role": "assistant", "content": reply})
 
-    return reply, temperature, finish_reason
+    return reply
 
 # -- Run the chatbot -------------------------------------- 
-print("\nHello! I'm a world-class expert across multiple fields. \nHow can I help you today?\n")
+print("\nChallenge 4: Few-Shot Prompting\n")
+print("Type words and the model will format them as: word :: part_of_speech :: definition :: category\n")
+
 while True:
     user_input = input("You: ")
     if user_input.lower() == "quit":
         break
 
-    reply, temp_used, finish_reason = chat(user_input, temperature=0.7, max_tokens=1024)
+    # Set use_examples=True to enable few-shot prompting
+    # Set use_examples=False to test without examples
+    reply = chat(user_input, temperature=0.7, max_tokens=1024, use_examples=True)
 
-    print(f"\n[temperature={temp_used}] [finish_reason={finish_reason}]")
-    print(f"Assistant: {reply}\n")
+    print(f"\nAssistant: {reply}\n")
