@@ -87,6 +87,7 @@ Question: {question}"""
 # Create chunks for retrieval (used in Challenge 3+)
 chunks = chunk_story(story)
 
+
 while True:
     question = input("\nAsk a question about the story (or 'quit' to exit): ")
     if question.lower() == "quit":
