@@ -44,7 +44,6 @@ Both phrases embed to vectors that land close together in the 1536-dimensional s
 
 The retrieval system embeds the user's question to a vector, calculates cosine similarity between that question vector and all 12 chunk vectors, then sorts by similarity and returns the top-3 most relevant chunks. These chunks can come from anywhere in the story — they're selected based on semantic relevance, not sequential order. The model then synthesizes an answer using only those retrieved chunks as context, producing grounded, accurate answers that avoid hallucination.
 
-
 # Challenge 4: Finding the Right Piece
 
 ## Q1: If every piece of the story has a numeric representation, and you generate one for an incoming question the same way, how would you decide which piece is the closest match?
@@ -62,3 +61,21 @@ You can do it in memory with simple Python loops and math operations. Our system
 ## Q4: If you retrieve more than one piece for a question, how would you decide how many is enough? What might go wrong if you retrieve too few? Too many?
 
 We chose top-k=3 as a practical balance. Too few chunks (top-1) risks missing context — if the answer spans multiple related sections, retrieving only one chunk loses important information, forcing the model to hallucinate the rest. Too many chunks (top-10 or more) adds noise from irrelevant sections, wastes tokens, and can confuse the model with contradictory or tangential information. Top-3 provides enough context for most questions while staying efficient.
+
+# Challenge 5: Wiring It Into the LLM
+
+## Q1: What should a retrieval tool like `search_story` take as input and return as output?
+
+Input: the user's question (text). Output: the top-3 most relevant chunks from the story that answer that question. The `retrieve_chunks()` function takes the question, embeds it, compares it to all chunk embeddings via cosine similarity, and returns the 3 chunks with highest similarity scores.
+
+## Q2: When should the model decide to call this tool — every time or sometimes?
+
+Every time. Retrieval always runs before answering because it's fast (just vector math) and ensures every answer is grounded in the story. The model never answers without checking whether the context exists in the chunks first.
+
+## Q3: Once the tool returns chunks, what has to happen next for that content to actually shape the model's final answer? Where does it need to end up?
+
+The retrieved chunks are passed directly into the `ask_about_story()` function as the `retrieved_chunks` parameter. These chunks become the context in the user message: "Here are story excerpts: [chunks]. Question: [user's question]." The model then synthesizes an answer using only that context, avoiding hallucination.
+
+## Q4: Trace the full round trip: user asks question → ? → ? → ? → final answer appears
+
+User asks question → `retrieve_chunks()` embeds question → calculates cosine similarity vs all 12 chunk embeddings → sorts by score (highest first) → returns top-3 chunks → `ask_about_story()` sends chunks + question to the model → model generates answer based only on those chunks → answer printed to user.
