@@ -84,13 +84,79 @@ Question: {question}"""
     return response.choices[0].message.content
 
 
-# Create chunks for retrieval (used in Challenge 3+)
+def get_embedding(text):
+    """
+    Get embedding vector for text using OpenAI's embedding model.
+    
+    Args:
+        text: text to embed
+    
+    Returns:
+        list of 1536 numbers representing the text's meaning
+    """
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text
+    )
+    return response.data[0].embedding
+
+
+def cosine_similarity(vec1, vec2):
+    """
+    Calculate cosine similarity between two vectors.
+    
+    Args:
+        vec1, vec2: lists of numbers (embeddings)
+    
+    Returns:
+        similarity score between 0 and 1
+    """
+    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    magnitude1 = sum(a ** 2 for a in vec1) ** 0.5
+    magnitude2 = sum(b ** 2 for b in vec2) ** 0.5
+    return dot_product / (magnitude1 * magnitude2)
+
+
+def retrieve_chunks(question, chunks, chunk_embeddings, top_k=3):
+    """
+    Find the top-k most relevant chunks for a question.
+    
+    Args:
+        question: user's question
+        chunks: list of text chunks
+        chunk_embeddings: list of embedding vectors for chunks
+        top_k: how many chunks to return
+    
+    Returns:
+        list of top-k chunks sorted by relevance
+    """
+    question_embedding = get_embedding(question)
+    similarities = []
+    
+    for i, chunk_emb in enumerate(chunk_embeddings):
+        sim = cosine_similarity(question_embedding, chunk_emb)
+        similarities.append((i, sim, chunks[i]))
+    
+    # Sort by similarity (descending) and take top-k
+    top_chunks = sorted(similarities, key=lambda x: x[1], reverse=True)[:top_k]
+    return [chunk for _, _, chunk in top_chunks]
+
+
+# Create chunks for retrieval
 chunks = chunk_story(story)
 
+# Create embeddings for all chunks
+chunk_embeddings = []
+for chunk in chunks:
+    embedding = get_embedding(chunk)
+    chunk_embeddings.append(embedding)
+
+print(f"RAG system ready: {len(chunks)} chunks, {len(chunk_embeddings)} embeddings\n")
 
 while True:
     question = input("\nAsk a question about the story (or 'quit' to exit): ")
     if question.lower() == "quit":
         break
-    answer = ask_about_story(question)
+    retrieved = retrieve_chunks(question, chunks, chunk_embeddings, top_k=3)
+    answer = ask_about_story(question, retrieved)
     print(f"\nAnswer: {answer}\n")
