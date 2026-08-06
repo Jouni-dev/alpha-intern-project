@@ -1,9 +1,8 @@
 import os
-import faiss
-import pickle
-import numpy as np
+import json
 from dotenv import load_dotenv
 from openai import OpenAI
+import chromadb
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -65,28 +64,6 @@ def chunk_story(text, max_chunk_size=1000, overlap_size=150):
 system_prompt = """You are a helpful assistant. Answer questions based only on the provided story excerpts. If the answer is not in the excerpts, say you don't know."""
 
 
-def ask_about_story(question, retrieved_chunks=None):
-    context = ""
-    if retrieved_chunks:
-        context = "\n\n".join(retrieved_chunks)
-    
-    user_message = f"""Here are story excerpts:
-
-{context}
-
-Question: {question}"""
-    
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        max_tokens=256,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ]
-    )
-    return response.choices[0].message.content
-
-
 def get_embedding(text):
     """
     Get embedding vector for text using OpenAI's embedding model.
@@ -120,100 +97,68 @@ def cosine_similarity(vec1, vec2):
     return dot_product / (magnitude1 * magnitude2)
 
 
-def retrieve_chunks(question, chunks, chunk_embeddings, top_k=3):
+def initialize_chroma_collection(chunks):
     """
-    Find the top-k most relevant chunks for a question.
+    Initialize Chroma collection with story chunks and embeddings.
+    
+    Args:
+        chunks: list of story chunks
+    
+    Returns:
+        Chroma collection object
+    """
+    # Initialize Chroma client with persistent storage
+    chroma_client = chromadb.PersistentClient(path="./chroma_db")
+    
+    # Try to get existing collection, or create new one
+    try:
+        collection = chroma_client.get_collection(name="story_chunks")
+        print(f"Loaded existing Chroma collection with {collection.count()} chunks")
+    except:
+        # Collection doesn't exist, create it
+        print("Creating new Chroma collection...")
+        collection = chroma_client.create_collection(name="story_chunks")
+        
+        # Generate embeddings and add to collection
+        for i, chunk in enumerate(chunks):
+            embedding = get_embedding(chunk)
+            collection.add(
+                ids=[str(i)],
+                embeddings=[embedding],
+                documents=[chunk],
+                metadatas=[{"chunk_index": i}]
+            )
+            print(f"Added chunk {i+1}/{len(chunks)}")
+        
+        print(f"Chroma collection created with {len(chunks)} chunks")
+    
+    return collection
+
+
+def retrieve_chunks_from_chroma(question, collection, top_k=3):
+    """
+    Retrieve relevant chunks from Chroma collection.
     
     Args:
         question: user's question
-        chunks: list of text chunks
-        chunk_embeddings: list of embedding vectors for chunks
-        top_k: how many chunks to return
+        collection: Chroma collection object
+        top_k: number of chunks to retrieve
     
     Returns:
-        list of top-k chunks sorted by relevance
+        list of top-k relevant chunks
     """
+    # Get embedding for the question
     question_embedding = get_embedding(question)
-    similarities = []
     
-    for i, chunk_emb in enumerate(chunk_embeddings):
-        sim = cosine_similarity(question_embedding, chunk_emb)
-        similarities.append((i, sim, chunks[i]))
+    # Query Chroma collection
+    results = collection.query(
+        query_embeddings=[question_embedding],
+        n_results=top_k
+    )
     
-    # Sort by similarity (descending) and take top-k
-    top_chunks = sorted(similarities, key=lambda x: x[1], reverse=True)[:top_k]
-    return [chunk for _, _, chunk in top_chunks]
-
-
-def save_embeddings_to_db(chunk_embeddings, chunks, db_path="story_embeddings.faiss", metadata_path="story_metadata.pkl"):
-    """
-    Save embeddings to FAISS index and chunks to metadata file.
-    
-    Args:
-        chunk_embeddings: list of embedding vectors (1536-dim each)
-        chunks: list of chunk texts
-        db_path: path to save FAISS index
-        metadata_path: path to save chunk metadata
-    """
-    # Convert list of embeddings to numpy array
-    embeddings_array = np.array(chunk_embeddings).astype('float32')
-    
-    # Create FAISS index
-    index = faiss.IndexFlatL2(1536)
-    index.add(embeddings_array)
-    
-    # Save index and metadata
-    faiss.write_index(index, db_path)
-    with open(metadata_path, 'wb') as f:
-        pickle.dump(chunks, f)
-    
-    print(f"Saved {len(chunk_embeddings)} embeddings to {db_path}")
-
-
-def load_embeddings_from_db(db_path="story_embeddings.faiss", metadata_path="story_metadata.pkl"):
-    """
-    Load embeddings from FAISS index and chunks from metadata.
-    
-    Returns:
-        (index, chunks) — FAISS index and list of chunk texts
-    """
-    if not os.path.exists(db_path) or not os.path.exists(metadata_path):
-        return None, None
-    
-    index = faiss.read_index(db_path)
-    with open(metadata_path, 'rb') as f:
-        chunks = pickle.load(f)
-    
-    print(f"Loaded {index.ntotal} embeddings from {db_path}")
-    return index, chunks
-
-
-# Define database paths
-db_path = "C:\\Users\\jouni\\alpha-intern-project\\Practical_Task_6_Story_RAG\\db\\story_embeddings.faiss"
-metadata_path = "C:\\Users\\jouni\\alpha-intern-project\\Practical_Task_6_Story_RAG\\db\\story_metadata.pkl"
-
-# Try to load from database first
-index, chunks = load_embeddings_from_db(db_path, metadata_path)
-
-if index is None:
-    # Database doesn't exist, create embeddings from scratch
-    print("Creating embeddings for first time...")
-    chunks = chunk_story(story)
-    chunk_embeddings = []
-    for chunk in chunks:
-        embedding = get_embedding(chunk)
-        chunk_embeddings.append(embedding)
-    
-    # Save to database
-    save_embeddings_to_db(chunk_embeddings, chunks, db_path, metadata_path)
-else:
-    # Load embeddings from database for retrieval
-    chunk_embeddings = []
-    for i in range(index.ntotal):
-        # Retrieve embedding by index (for in-memory use)
-        chunk_embeddings.append(index.reconstruct(i).tolist())
-
-print(f"RAG system ready: {len(chunks)} chunks, {len(chunk_embeddings)} embeddings\n")
+    # Extract and return the documents
+    retrieved_chunks = results["documents"][0] if results["documents"] else []
+    return retrieved_chunks
 
 
 def search_story_tool_definition():
@@ -240,6 +185,14 @@ def search_story_tool_definition():
         }
     }
 
+
+# Initialize story chunks
+chunks = chunk_story(story)
+
+# Initialize Chroma collection
+collection = initialize_chroma_collection(chunks)
+
+print(f"RAG system ready: {len(chunks)} chunks in Chroma collection\n")
 
 # Initialize conversation history for multi-turn dialogue
 conversation_history = []
@@ -274,12 +227,11 @@ while True:
         for tool_call in msg.tool_calls:
             if tool_call.function.name == "search_story":
                 # Parse the arguments
-                import json
                 args = json.loads(tool_call.function.arguments)
                 user_question = args.get("question", question)
                 
-                # Call retrieve_chunks to get relevant story excerpts
-                retrieved = retrieve_chunks(user_question, chunks, chunk_embeddings, top_k=3)
+                # Retrieve chunks from Chroma
+                retrieved = retrieve_chunks_from_chroma(user_question, collection, top_k=3)
                 
                 # Add tool result to conversation history
                 conversation_history.append({
