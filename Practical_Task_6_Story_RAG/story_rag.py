@@ -1,4 +1,7 @@
 import os
+import faiss
+import pickle
+import numpy as np
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -142,14 +145,73 @@ def retrieve_chunks(question, chunks, chunk_embeddings, top_k=3):
     return [chunk for _, _, chunk in top_chunks]
 
 
-# Create chunks for retrieval
-chunks = chunk_story(story)
+def save_embeddings_to_db(chunk_embeddings, chunks, db_path="story_embeddings.faiss", metadata_path="story_metadata.pkl"):
+    """
+    Save embeddings to FAISS index and chunks to metadata file.
+    
+    Args:
+        chunk_embeddings: list of embedding vectors (1536-dim each)
+        chunks: list of chunk texts
+        db_path: path to save FAISS index
+        metadata_path: path to save chunk metadata
+    """
+    # Convert list of embeddings to numpy array
+    embeddings_array = np.array(chunk_embeddings).astype('float32')
+    
+    # Create FAISS index
+    index = faiss.IndexFlatL2(1536)
+    index.add(embeddings_array)
+    
+    # Save index and metadata
+    faiss.write_index(index, db_path)
+    with open(metadata_path, 'wb') as f:
+        pickle.dump(chunks, f)
+    
+    print(f"Saved {len(chunk_embeddings)} embeddings to {db_path}")
 
-# Create embeddings for all chunks
-chunk_embeddings = []
-for chunk in chunks:
-    embedding = get_embedding(chunk)
-    chunk_embeddings.append(embedding)
+
+def load_embeddings_from_db(db_path="story_embeddings.faiss", metadata_path="story_metadata.pkl"):
+    """
+    Load embeddings from FAISS index and chunks from metadata.
+    
+    Returns:
+        (index, chunks) — FAISS index and list of chunk texts
+    """
+    if not os.path.exists(db_path) or not os.path.exists(metadata_path):
+        return None, None
+    
+    index = faiss.read_index(db_path)
+    with open(metadata_path, 'rb') as f:
+        chunks = pickle.load(f)
+    
+    print(f"Loaded {index.ntotal} embeddings from {db_path}")
+    return index, chunks
+
+
+# Define database paths
+db_path = "C:\\Users\\jouni\\alpha-intern-project\\Practical_Task_6_Story_RAG\\db\\story_embeddings.faiss"
+metadata_path = "C:\\Users\\jouni\\alpha-intern-project\\Practical_Task_6_Story_RAG\\db\\story_metadata.pkl"
+
+# Try to load from database first
+index, chunks = load_embeddings_from_db(db_path, metadata_path)
+
+if index is None:
+    # Database doesn't exist, create embeddings from scratch
+    print("Creating embeddings for first time...")
+    chunks = chunk_story(story)
+    chunk_embeddings = []
+    for chunk in chunks:
+        embedding = get_embedding(chunk)
+        chunk_embeddings.append(embedding)
+    
+    # Save to database
+    save_embeddings_to_db(chunk_embeddings, chunks, db_path, metadata_path)
+else:
+    # Load embeddings from database for retrieval
+    chunk_embeddings = []
+    for i in range(index.ntotal):
+        # Retrieve embedding by index (for in-memory use)
+        chunk_embeddings.append(index.reconstruct(i).tolist())
 
 print(f"RAG system ready: {len(chunks)} chunks, {len(chunk_embeddings)} embeddings\n")
 
