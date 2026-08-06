@@ -215,10 +215,98 @@ else:
 
 print(f"RAG system ready: {len(chunks)} chunks, {len(chunk_embeddings)} embeddings\n")
 
+
+def search_story_tool_definition():
+    """
+    Return the JSON schema for the search_story tool.
+    This tells the model what the tool does and what parameters it accepts.
+    """
+    return {
+        "type": "function",
+        "function": {
+            "name": "search_story",
+            "description": "Search the story for information relevant to a user's question. Call this tool when the user asks about events, characters, or details from the story. The tool returns the 3 most relevant chunks from the story text.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The user's question about the story"
+                    }
+                },
+                "required": ["question"],
+                "additionalProperties": False
+            }
+        }
+    }
+
+
+# Initialize conversation history for multi-turn dialogue
+conversation_history = []
+
 while True:
     question = input("\nAsk a question about the story (or 'quit' to exit): ")
     if question.lower() == "quit":
         break
-    retrieved = retrieve_chunks(question, chunks, chunk_embeddings, top_k=3)
-    answer = ask_about_story(question, retrieved)
+    
+    # Add user question to conversation history
+    conversation_history.append({"role": "user", "content": question})
+    
+    # First API call: send question + tool definitions to the model
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        max_tokens=256,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            *conversation_history
+        ],
+        tools=[search_story_tool_definition()]
+    )
+    
+    msg = response.choices[0].message
+    
+    # Check if the model wants to call a tool
+    if msg.tool_calls:
+        # Model decided it needs to search the story
+        conversation_history.append({"role": "assistant", "content": msg.content, "tool_calls": msg.tool_calls})
+        
+        # Execute the tool call(s)
+        for tool_call in msg.tool_calls:
+            if tool_call.function.name == "search_story":
+                # Parse the arguments
+                import json
+                args = json.loads(tool_call.function.arguments)
+                user_question = args.get("question", question)
+                
+                # Call retrieve_chunks to get relevant story excerpts
+                retrieved = retrieve_chunks(user_question, chunks, chunk_embeddings, top_k=3)
+                
+                # Add tool result to conversation history
+                conversation_history.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": "\n\n".join(retrieved)
+                })
+        
+        # Second API call: send tool results back to model for final answer
+        final_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=256,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                *conversation_history
+            ],
+            tools=[search_story_tool_definition()]
+        )
+        
+        final_msg = final_response.choices[0].message
+        answer = final_msg.content
+        
+        # Add final answer to conversation history
+        conversation_history.append({"role": "assistant", "content": answer})
+    else:
+        # Model answered directly without needing the tool
+        answer = msg.content
+        conversation_history.append({"role": "assistant", "content": answer})
+    
     print(f"\nAnswer: {answer}\n")
