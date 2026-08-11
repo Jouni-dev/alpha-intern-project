@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from ragas.llms import llm_factory
 from ragas.embeddings.base import embedding_factory
-from ragas.metrics.collections import Faithfulness, AnswerRelevancy, ContextPrecision
+from ragas.metrics.collections import Faithfulness, ContextPrecision
 
 print("[evaluate] Loading environment variables...")
 load_dotenv()
@@ -29,7 +29,7 @@ client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 print("[evaluate] AsyncOpenAI client initialized")
 
 # Initialize Ragas metrics with OpenAI models
-print("\n[evaluate] Initializing Ragas metrics...")
+print("\n[evaluate] Initializing evaluation metrics...")
 print("[evaluate] Creating LLM factory for gpt-4o-mini...")
 llm = llm_factory("gpt-4o-mini", client=client)
 print("[evaluate] ✓ LLM factory created")
@@ -42,20 +42,71 @@ print("[evaluate] Instantiating Faithfulness metric...")
 faithfulness = Faithfulness(llm=llm)
 print("[evaluate] ✓ Faithfulness metric ready")
 
-print("[evaluate] Instantiating AnswerRelevancy metric...")
-relevancy = AnswerRelevancy(llm=llm, embeddings=embeddings)
-print("[evaluate] ✓ AnswerRelevancy metric ready")
-
 print("[evaluate] Instantiating ContextPrecision metric...")
 precision = ContextPrecision(llm=llm)
 print("[evaluate] ✓ ContextPrecision metric ready")
 
-print("\n[evaluate] ✓✓✓ All Ragas metrics initialized. Ready to evaluate.\n")
+print("[evaluate] ✓ Custom AnswerRelevancy scorer ready (LLM-as-judge)")
+
+print("\n[evaluate] ✓✓✓ All evaluation metrics initialized. Ready to evaluate.\n")
+
+METRIC_TIMEOUT = 90  # 90 seconds per metric
+
+
+async def score_answer_relevancy(question, answer, client):
+    """
+    Custom LLM-as-judge for answer relevancy.
+    Score 1-5: does the answer actually address the question?
+    """
+    judge_prompt = f"""You are evaluating whether an answer addresses a question.
+
+Question: {question}
+Answer: {answer}
+
+Score the relevancy 1-5:
+1 = Completely irrelevant to the question
+2 = Mostly irrelevant, touches on some aspect
+3 = Somewhat relevant but misses key aspects
+4 = Mostly addresses the question
+5 = Directly and fully addresses the question
+
+Respond with ONLY a number 1-5."""
+
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": judge_prompt}],
+            temperature=0.3,
+            max_tokens=10
+        )
+        score_text = response.choices[0].message.content.strip()
+        score = float(score_text)
+        # Normalize to 0-1 scale (Ragas uses 0-1)
+        return score / 5.0
+    except Exception as e:
+        print(f"Error scoring relevancy: {e}")
+        return None
+
+
+async def score_with_timeout(coro, metric_name, item_idx):
+    """Score a metric with a timeout to prevent hangs."""
+    try:
+        print(f"[score_item {item_idx}] Scoring: {metric_name}...")
+        result = await asyncio.wait_for(coro, timeout=METRIC_TIMEOUT)
+        score = result.value
+        print(f"[score_item {item_idx}] ✓ {metric_name} score: {score:.2f}")
+        return score
+    except asyncio.TimeoutError:
+        print(f"[score_item {item_idx}] ✗ {metric_name} timeout (>{METRIC_TIMEOUT}s)")
+        return None
+    except Exception as e:
+        print(f"[score_item {item_idx}] ✗ {metric_name} error: {str(e)[:100]}")
+        return None
 
 
 async def score_item(item_idx, item):
     """
-    Run one golden set item through the pipeline and score with Ragas.
+    Run one golden set item through the pipeline and score with metrics.
     
     Args:
         item_idx: index of this item in the golden set
@@ -91,49 +142,48 @@ async def score_item(item_idx, item):
             "error": str(e)
         }
     
-    # Score with Ragas metrics
-    print(f"[score_item {item_idx}] Starting Ragas scoring...")
+    # Score with metrics SEQUENTIALLY
+    print(f"[score_item {item_idx}] Starting scoring...")
     
-    faith_score = None
-    try:
-        print(f"[score_item {item_idx}] Scoring: Faithfulness...")
-        faith_score = (
-            await faithfulness.ascore(
-                user_input=item["question"],
-                response=answer,
-                retrieved_contexts=retrieved_chunks
-            )
-        ).value
-        print(f"[score_item {item_idx}] ✓ Faithfulness score: {faith_score:.2f}")
-    except Exception as e:
-        print(f"[score_item {item_idx}] ✗ Faithfulness error: {e}")
+    # Score 1: Faithfulness (Ragas)
+    faith_score = await score_with_timeout(
+        faithfulness.ascore(
+            user_input=item["question"],
+            response=answer,
+            retrieved_contexts=retrieved_chunks
+        ),
+        "Faithfulness",
+        item_idx
+    )
     
-    relevance_score = None
+    # Score 2: AnswerRelevancy (Custom LLM-as-judge)
+    print(f"[score_item {item_idx}] Scoring: AnswerRelevancy (custom)...")
     try:
-        print(f"[score_item {item_idx}] Scoring: AnswerRelevancy...")
-        relevance_score = (
-            await relevancy.ascore(
-                user_input=item["question"],
-                response=answer
-            )
-        ).value
-        print(f"[score_item {item_idx}] ✓ AnswerRelevancy score: {relevance_score:.2f}")
+        relevance_score = await asyncio.wait_for(
+            score_answer_relevancy(item["question"], answer, client),
+            timeout=METRIC_TIMEOUT
+        )
+        if relevance_score is not None:
+            print(f"[score_item {item_idx}] ✓ AnswerRelevancy score: {relevance_score:.2f}")
+        else:
+            print(f"[score_item {item_idx}] ✗ AnswerRelevancy returned None")
+    except asyncio.TimeoutError:
+        print(f"[score_item {item_idx}] ✗ AnswerRelevancy timeout (>{METRIC_TIMEOUT}s)")
+        relevance_score = None
     except Exception as e:
-        print(f"[score_item {item_idx}] ✗ AnswerRelevancy error: {e}")
+        print(f"[score_item {item_idx}] ✗ AnswerRelevancy error: {str(e)[:100]}")
+        relevance_score = None
     
-    precision_score = None
-    try:
-        print(f"[score_item {item_idx}] Scoring: ContextPrecision...")
-        precision_score = (
-            await precision.ascore(
-                user_input=item["question"],
-                reference=item["expected"],
-                retrieved_contexts=retrieved_chunks
-            )
-        ).value
-        print(f"[score_item {item_idx}] ✓ ContextPrecision score: {precision_score:.2f}")
-    except Exception as e:
-        print(f"[score_item {item_idx}] ✗ ContextPrecision error: {e}")
+    # Score 3: ContextPrecision (Ragas)
+    precision_score = await score_with_timeout(
+        precision.ascore(
+            user_input=item["question"],
+            reference=item["expected"],
+            retrieved_contexts=retrieved_chunks
+        ),
+        "ContextPrecision",
+        item_idx
+    )
     
     print(f"[score_item {item_idx}] ========== ITEM {item_idx+1} COMPLETE ==========\n")
     
@@ -155,9 +205,10 @@ async def run_evaluation():
     """
     print(f"\n[run_evaluation] ========== STARTING EVALUATION ==========")
     print(f"[run_evaluation] Running evaluation on {len(golden_set)} questions...")
-    print(f"[run_evaluation] Using asyncio.gather() for parallel scoring\n")
+    print(f"[run_evaluation] Metrics: Faithfulness (Ragas) + AnswerRelevancy (Custom) + ContextPrecision (Ragas)")
+    print(f"[run_evaluation] Using asyncio.gather() for parallel items (sequential metrics)\n")
     
-    # Score all items
+    # Score all items in parallel, but each item scores its metrics sequentially
     print("[run_evaluation] Awaiting all scoring tasks...")
     results = await asyncio.gather(
         *(score_item(idx, item) for idx, item in enumerate(golden_set))
@@ -186,7 +237,7 @@ async def run_evaluation():
         relevancy_scores = [r["relevancy"] for r in type_results if r["relevancy"] is not None]
         precision_scores = [r["precision"] for r in type_results if r["precision"] is not None]
         
-        print(f"[aggregate] {qtype}: {len(faithfulness_scores)} faithfulness scores, {len(relevancy_scores)} relevancy, {len(precision_scores)} precision")
+        print(f"[aggregate] {qtype}: {len(faithfulness_scores)} faithfulness, {len(relevancy_scores)} relevancy, {len(precision_scores)} precision")
         
         if faithfulness_scores:
             mean_faith = statistics.mean(faithfulness_scores)
@@ -216,7 +267,7 @@ async def run_evaluation():
     all_relev = [r["relevancy"] for r in results if r["relevancy"] is not None]
     all_prec = [r["precision"] for r in results if r["precision"] is not None]
     
-    print(f"[aggregate] Overall: {len(all_faith)} faithfulness scores, {len(all_relev)} relevancy, {len(all_prec)} precision")
+    print(f"[aggregate] Overall: {len(all_faith)} faithfulness, {len(all_relev)} relevancy, {len(all_prec)} precision")
     
     if all_faith:
         overall_faith = statistics.mean(all_faith)
@@ -242,7 +293,6 @@ async def run_evaluation():
     print("[run_evaluation] Saving detailed results to eval_results.json...")
     results_file = "eval_results.json"
     with open(results_file, "w") as f:
-        # Convert for JSON serialization (floats are fine, lists of strings are fine)
         json_results = [
             {
                 "question": r["question"],
