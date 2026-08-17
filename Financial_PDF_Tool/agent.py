@@ -1,8 +1,9 @@
 """
 Unified Multi-Tool Agent
 
-Handles both story and financial tools. Decides which tool(s) to use
-based on the question, using OpenAI function calling.
+Dual-tool agent (story + financial) using OpenAI function calling.
+Both tools are retrievers (return chunks only, not synthesized answers).
+Model does synthesis on retrieved chunks.
 """
 
 import os
@@ -18,15 +19,15 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SYSTEM_PROMPT = """You are an AI assistant with access to two tools:
 
-1. search_story - searches a lighthouse story for narrative content (characters, events, plot)
-2. search_financial - searches a financial report for accounts, dollar amounts, budget vs actual, balance sheet data
+1. search_story - retrieves relevant story passages (characters, events, plot)
+2. search_financial - retrieves relevant financial data (accounts, amounts, comparisons)
 
 Rules:
 - If the question is about people, events, or narrative -> use search_story
 - If the question is about money, accounts, numbers, or financial data -> use search_financial
 - If the question could need both -> call both tools
-- If the question cannot be answered by either tool -> do not call any tool, and say you cannot answer it from the available documents
-- Base your answer only on what the tools return. If the tools return nothing relevant, say you don't know."""
+- If the question cannot be answered by either tool (general knowledge unrelated to documents) -> do not call any tool, say you cannot answer it from the available documents
+- Base your answer ONLY on what the tools return. Do not add knowledge from your training."""
 
 
 def define_tools() -> List[Dict[str, Any]]:
@@ -35,7 +36,7 @@ def define_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "search_story",
-                "description": "Search the lighthouse story for narrative content about characters, events, plot, and emotions. Use this for questions about Elena, Tomas, Henrik, the lighthouse, the compass, or what happened.",
+                "description": "Retrieve story passages about characters, events, plot, emotions. Use for questions about Elena, Tomas, Henrik, the lighthouse, the compass, or narrative events.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -49,7 +50,7 @@ def define_tools() -> List[Dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "search_financial",
-                "description": "Search the financial report for accounts, line items, dollar amounts, budget vs actual, year-over-year comparisons, balance sheet items, revenue, and expenses. Use this for questions about financial data, money, accounts, or numbers.",
+                "description": "Retrieve financial data about accounts, line items, dollar amounts, budget vs actual, year-over-year comparisons, balance sheet items, revenue, expenses.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -69,14 +70,16 @@ def ask_with_tools(
     conversation_history: List[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Returns:
-    {
-        "question": ...,
-        "answer": ...,
-        "tool_calls": [{"tool": "search_story" | "search_financial", "question": ...}],
-        "retrieved_chunks": [...],
-        "conversation_history": [...]
-    }
+    Ask a question, model picks tool(s), retriever functions return chunks,
+    model synthesizes answer from chunks only.
+
+    Args:
+        question: user question
+        retrieve_story_func: function(question) -> List[str] (story chunks)
+        retrieve_financial_func: function(question) -> List[str] (financial chunks)
+        conversation_history: optional prior messages
+
+    Returns: {question, answer, tool_calls, retrieved_chunks, conversation_history}
     """
     print(f"\n[agent] ========== NEW QUESTION ==========")
     print(f"[agent] Question: {question[:80]}...")
@@ -115,6 +118,7 @@ def ask_with_tools(
             tool_question = tool_args.get("question", question)
 
             print(f"[agent] Tool: {tool_name} | Args: {tool_question[:60]}...")
+
             tool_calls_made.append({"tool": tool_name, "question": tool_question})
 
             if tool_name == "search_story":
@@ -161,22 +165,19 @@ def ask_with_tools(
 
 
 if __name__ == "__main__":
+    from story_retriever import retrieve_story_chunks
     from financial_retrieval import retrieve_financial_chunks
-
-    def retrieve_story_chunks_stub(q):
-        print(f"[stub] Would search story for: {q}")
-        return [f"[STUB] Story chunk placeholder for: {q}"]
 
     print("[__main__] Testing dual-tool agent...\n")
 
     test_questions = [
         "Who pulled Tomas out of the water?",
-        "What was the Unrestricted Public Support amount in the Actual vs Plan report?",
+        "What was the Unrestricted Public Support amount?",
         "What is the answer to life, the universe, and everything?"
     ]
 
     for q in test_questions:
-        result = ask_with_tools(q, retrieve_story_chunks_stub, retrieve_financial_chunks)
+        result = ask_with_tools(q, retrieve_story_chunks, retrieve_financial_chunks)
         print(f"Q: {q}")
         print(f"A: {result['answer'][:150]}...")
-        print(f"Tools used: {[t['tool'] for t in result['tool_calls']]}\n")
+        print(f"Tools: {[t['tool'] for t in result['tool_calls']]}\n")

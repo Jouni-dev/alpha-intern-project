@@ -1,0 +1,16 @@
+Thing done 
+-PDF extraction using regex to make the chunk with the help of pdfplumber to access the PDF
+-Stored the chunks in ChromaDB
+-added the pdf tool to the already existing agent
+-Made sure that the tool selection is working correctly 
+
+
+Things to do 
+-Build an evaluation layer for the duel tool system 
+-Build a feature that allows the user to ask questions themselves and make sure that works smoothly
+
+
+Approach 
+-Run the questions and score the tool accuracy and the answer accuracy 
+-Use a while true loop to implement the interactive CLI
+
