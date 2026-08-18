@@ -1,44 +1,19 @@
 """
 Financial PDF Extraction Module
 
-Extracts financial line items from the PDF using regex-based text parsing
-instead of pdfplumber's table detection (this PDF has real text but no
-ruled table lines, so extract_tables() finds nothing on pages 1-3).
-
-Skips page 4 (revenue/expense chart - no extractable table data).
+Extracts financial line items from PDF using regex-based text parsing.
 """
 
 import re
 import pdfplumber
 from typing import List, Dict, Any
 
-print("[financial_extraction] Module loaded")
+load_dotenv_called = True
 
-# Money (1,234.56 / -1,234.56), percentages (12.34% / 5,660.00%),
-# and short footnote markers like (a), (aa) - not longer words like (current)
 TOKEN_PATTERN = r'-?[\d,]+\.\d+%|-?[\d,]+\.\d+|\([a-z]{1,2}\)'
-
-# Lines that mark the end of the data table (recap/footnote prose follows)
-STOP_MARKERS = [
-    "Mid-Year Financial Statement Recap",
-    "Year Over Year Recap",
-    "Notes (Variances",
-    "Notes:",
-]
-
-SKIP_EXACT = [
-    "Wikimedia Foundation",
-    "Actual vs Plan Comparison",
-    "Year-Over-Year Comparison",
-    "Balance Sheet",
-    "Actual Plan Annual",
-]
-
-SECTION_HEADERS = [
-    "Ordinary Income/Expense", "Income", "Expense",
-    "ASSETS", "Current Assets", "Other Assets",
-    "LIABILITIES & EQUITY", "Current Liabilities", "Equity",
-]
+STOP_MARKERS = ["Mid-Year Financial Statement Recap", "Year Over Year Recap", "Notes (Variances", "Notes:"]
+SKIP_EXACT = ["Wikimedia Foundation", "Actual vs Plan Comparison", "Year-Over-Year Comparison", "Balance Sheet", "Actual Plan Annual"]
+SECTION_HEADERS = ["Ordinary Income/Expense", "Income", "Expense", "ASSETS", "Current Assets", "Other Assets", "LIABILITIES & EQUITY", "Current Liabilities", "Equity"]
 
 REPORT_CONFIG = {
     "Actual_vs_Plan": {
@@ -57,7 +32,6 @@ REPORT_CONFIG = {
 
 
 def detect_report_type(text: str) -> str:
-    """Detect which financial report a page contains, from its text."""
     if "Actual vs Plan" in text:
         return "Actual_vs_Plan"
     elif "Year-Over-Year" in text:
@@ -81,7 +55,6 @@ def is_title_line(line: str) -> bool:
 
 
 def parse_page_lines(text: str) -> List[Dict[str, Any]]:
-    """Parse a page's extracted text into structured rows."""
     lines = text.split("\n")
     rows = []
     current_section = None
@@ -106,7 +79,6 @@ def parse_page_lines(text: str) -> List[Dict[str, Any]]:
         tokens = re.findall(TOKEN_PATTERN, line)
 
         if not tokens:
-            # wrapped label continuation - numbers appear on the next line
             pending_label = (pending_label + " " + line).strip()
             continue
 
@@ -118,17 +90,12 @@ def parse_page_lines(text: str) -> List[Dict[str, Any]]:
         if not re.search(r'[A-Za-z]', full_label):
             continue
 
-        rows.append({
-            "section": current_section,
-            "label": full_label,
-            "tokens": tokens,
-        })
+        rows.append({"section": current_section, "label": full_label, "tokens": tokens})
 
     return rows
 
 
 def build_chunk_text(row: Dict[str, Any], report_type: str) -> str:
-    """Format a parsed row into a single embeddable string."""
     cfg = REPORT_CONFIG[report_type]
     notes = [t for t in row["tokens"] if t.startswith("(")]
     values = [t for t in row["tokens"] if not t.startswith("(")]
@@ -148,30 +115,20 @@ def build_chunk_text(row: Dict[str, Any], report_type: str) -> str:
 
 
 def extract_financial_chunks(pdf_path: str) -> List[Dict[str, Any]]:
-    """
-    Extract all financial line items from the PDF as embeddable chunks.
-    Each chunk: {text, page, report_type, table_index, row_index, section, account_label}
-    """
     chunks = []
 
     with pdfplumber.open(pdf_path) as pdf:
-        print(f"[financial_extraction] Opened PDF: {len(pdf.pages)} pages")
-
         for page_num, page in enumerate(pdf.pages):
             text = page.extract_text()
             if not text:
-                print(f"[financial_extraction] Page {page_num + 1}: no text, skipping")
                 continue
 
             report_type = detect_report_type(text)
-            print(f"[financial_extraction] Page {page_num + 1}: {report_type}")
 
             if report_type == "Unknown":
-                print(f"[financial_extraction] Page {page_num + 1}: skipping (chart/non-tabular page)")
                 continue
 
             rows = parse_page_lines(text)
-            print(f"[financial_extraction] Page {page_num + 1}: parsed {len(rows)} rows")
 
             for row_idx, row in enumerate(rows):
                 chunk_text = build_chunk_text(row, report_type)
@@ -185,33 +142,19 @@ def extract_financial_chunks(pdf_path: str) -> List[Dict[str, Any]]:
                     "account_label": row["label"],
                 })
 
-    print(f"[financial_extraction] Total chunks extracted: {len(chunks)}")
     return chunks
 
 
-# Alias for compatibility with financial_retrieval.py
 def extract_tables_from_pdf(pdf_path: str) -> List[Dict[str, Any]]:
     return extract_financial_chunks(pdf_path)
 
 
 if __name__ == "__main__":
     pdf_path = "./mid_Financial.pdf"
-
-    print("[__main__] Starting PDF extraction...\n")
     chunks = extract_financial_chunks(pdf_path)
-
-    print(f"\n[__main__] Extracted {len(chunks)} total chunks")
-
+    print(f"✓ Extracted {len(chunks)} chunks")
+    
     if chunks:
-        print("\n[__main__] Sample chunks (first 5):")
-        for i, chunk in enumerate(chunks[:5]):
-            print(f"\nChunk {i+1}:")
-            print(f"  Page: {chunk['page']}")
-            print(f"  Report: {chunk['report_type']}")
-            print(f"  Section: {chunk['section']}")
-            print(f"  Text: {chunk['text']}")
-
-        print(f"\n[__main__] Breakdown by report type:")
         by_type = {}
         for c in chunks:
             by_type[c["report_type"]] = by_type.get(c["report_type"], 0) + 1
