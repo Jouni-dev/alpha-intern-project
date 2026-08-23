@@ -256,24 +256,24 @@ while True:
             "answer": REDIRECT_MESSAGE,
             "friendly_message": ""
         }
-        print(f"\nAssistant: {json.dumps(redirect_json)}\n")
+        print(f"\nAssistant: {json.dumps(redirect_json, ensure_ascii=False)}\n")
         continue
-    
+
     # Process weather-related question
     response = chat(user_message=user_input)
-    
+
     # OUTPUT VALIDATION: Check if response is actually about weather
     answer = response.get("answer", "") if isinstance(response, dict) else str(response)
-    
+
     if not is_weather_answer(answer):
         # Return redirect message in JSON format
         redirect_json = {
             "answer": REDIRECT_MESSAGE,
             "friendly_message": ""
         }
-        print(f"\nAssistant: {json.dumps(redirect_json)}\n")
+        print(f"\nAssistant: {json.dumps(redirect_json, ensure_ascii=False)}\n")
     else:
         if isinstance(response, dict):
-            print(f"\nAssistant: {json.dumps(response)}\n")
+            print(f"\nAssistant: {json.dumps(response, ensure_ascii=False)}\n")
         else:
             print(f"\nAssistant: {response}\n")
