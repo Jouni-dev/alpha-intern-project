@@ -268,22 +268,18 @@ def main():
 # ============ TEST SECTION ============
 # Uncomment below to test validate_itinerary() with a broken test case
 
-def test_broken_itinerary():
-    bad_test = {
-        "destination": "Cairo",
-        "number_of_days": "three",  # Should be integer, not string
-        "daily_activities": [],  # Should not be empty
-        "estimated_budget": "around $800",  # Should be number, not string
-        "travel_tips": ["Stay hydrated"]
-    }
-
-    try:
-        validate_itinerary(bad_test)
-        print("ERROR: Validation should have failed!")
-    except ValueError as e:
-        print(f"Correctly caught validation error: {e}")
-
-test_broken_itinerary()
+# def test_broken_itinerary():
+#     bad_test = {
+#         ...
+#     }
+#
+#     try:
+#         validate_itinerary(bad_test)
+#         print("ERROR: Validation should have failed!")
+#     except ValueError as e:
+#         print(f"Correctly caught validation error: {e}")
+#
+# test_broken_itinerary() 
 
 
 if __name__ == "__main__":

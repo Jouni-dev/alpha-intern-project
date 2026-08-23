@@ -1,0 +1,75 @@
+Anthropic: Company Overview
+
+Founding and Mission
+
+Anthropic is an artificial intelligence safety and research company based in San Francisco, California. It was founded in 2021 by a group of former OpenAI employees, including siblings Dario Amodei and Daniela Amodei, who serve as CEO and President respectively. Other co-founders include Tom Brown, Chris Olah, Sam McCandlish, Jack Clark, Jared Kaplan, and Benjamin Mann. Many of the founding team had previously worked on GPT-2 and GPT-3 at OpenAI before leaving to start a company with a more explicit focus on AI safety.
+
+Anthropic's stated mission is to ensure that humanity safely navigates the transition through transformative AI. The company describes itself as an "AI safety and research company" and frames its commercial products as a way to fund and inform its safety research, rather than safety being an afterthought bolted onto a product-first company. Anthropic is structured as a public benefit corporation, which legally allows it to weigh its mission alongside shareholder interests when making decisions.
+
+The Claude Model Family
+
+Anthropic's primary product is a family of large language models called Claude, named after Claude Shannon, the founder of information theory. Claude models are accessible through a consumer chat interface (claude.ai), a developer-facing API, and through cloud platforms including Amazon Bedrock and Google Cloud Vertex AI.
+
+The Claude model family has gone through several generations:
+- Claude 1 was released in March 2023, Anthropic's first publicly available model.
+- Claude 2 followed in July 2023, with improvements in reasoning and a longer context window.
+- Claude 3 launched in March 2024 as a family of three models of increasing capability: Claude 3 Haiku (fastest, smallest), Claude 3 Sonnet (balanced), and Claude 3 Opus (most capable). This was the first time Anthropic offered a tiered model family so customers could trade off cost, speed, and capability.
+- Claude 3.5 Sonnet was released in mid-2024, followed by an upgraded version later that year that introduced computer use, an experimental capability allowing Claude to view a screen and control a mouse and keyboard to complete tasks.
+- Claude 3.5 Haiku followed as a faster, smaller model in the 3.5 generation.
+- Claude 3.7 Sonnet, released in early 2025, introduced "extended thinking," allowing the model to spend more computation reasoning through a problem before answering, with a visible reasoning process.
+
+Constitutional AI
+
+One of Anthropic's most well-known research contributions is Constitutional AI (CAI), a technique for training models to be helpful and harmless without relying solely on large volumes of human feedback labeling harmful content. Instead, the model is trained against a set of written principles (a "constitution") drawn from sources such as the UN Declaration of Human Rights and various trust and safety best practices. The model critiques and revises its own responses according to these principles, and this self-critique process is then used to fine-tune the model with reinforcement learning. Anthropic has published its constitution publicly and has framed Constitutional AI as a step toward more scalable and transparent alignment techniques than pure human-feedback-based approaches.
+
+Interpretability Research
+
+Anthropic maintains a large interpretability research team focused on "mechanistic interpretability" — trying to reverse-engineer what is actually happening inside a neural network, rather than treating it purely as a black box. Notable work from this team includes research on "features" and "circuits" inside language models, and a 2023-2024 line of research using sparse autoencoders to extract human-interpretable features from Claude's internal activations, including a widely discussed paper that identified millions of distinct features (including the well-known "Golden Gate Bridge" feature, which could be artificially amplified to make Claude fixate on the Golden Gate Bridge in conversation).
+
+Anthropic argues interpretability is a core part of its safety agenda: if researchers can understand what a model is actually representing internally, they are better positioned to detect deceptive or unsafe behavior before it manifests in outputs.
+
+Responsible Scaling Policy
+
+In 2023, Anthropic published a Responsible Scaling Policy (RSP), a framework that ties increasingly capable models to increasingly stringent safety and security requirements before they can be trained or deployed. The RSP defines a series of "AI Safety Levels" (ASL), modeled loosely on biosafety levels. ASL-2 describes the safety measures applicable to current-generation models; higher levels correspond to hypothetical future capabilities (such as significantly uplifting a novice's ability to create biological or cyber weapons) that would require additional safeguards before a model meeting those criteria could be developed or released.
+
+Funding and Corporate Structure
+
+Anthropic has raised significant funding since its founding in 2021. Major investors and partners include Google, which has invested billions of dollars and provides cloud infrastructure through Google Cloud, and Amazon, which has also invested billions of dollars and named Anthropic a key partner for Amazon Bedrock, with AWS serving as a primary cloud provider for Anthropic's training and inference infrastructure. Other investors have included Spark Capital, various venture capital firms, and sovereign wealth funds. The company's valuation has increased substantially across funding rounds since its founding.
+
+As a public benefit corporation, Anthropic has a Long-Term Benefit Trust — a group of financially disinterested trustees empowered to elect a portion of Anthropic's board of directors, intended as a mechanism to keep the company's safety mission influential in governance even as commercial pressures grow.
+
+Enterprise and Developer Products
+
+Beyond the consumer chat product, Anthropic offers the Claude API for developers to integrate Claude into their own applications, the Claude Developer Platform with features like prompt caching (reducing cost and latency for repeated context) and tool use (function calling), and Claude Code, a command-line tool that lets developers delegate coding tasks directly to Claude from the terminal. Anthropic also offers Claude for Enterprise and Claude for Government tiers aimed at large organizations with additional compliance, security, and deployment needs.
+
+Anthropic has also published and maintained the Model Context Protocol (MCP), an open standard released in late 2024 for connecting AI models to external tools, data sources, and systems in a standardized way, intended to reduce the amount of custom integration work needed to connect an AI assistant to a given piece of software.
+
+Notable Safety and Policy Positions
+
+Anthropic has been a vocal advocate for AI safety regulation, testifying before government bodies including the U.S. Congress and engaging with the UK's AI Safety Summit. The company has published research specifically aimed at demonstrating potential risks of advanced AI systems, including work on "sleeper agents" (models that behave safely during training/evaluation but pursue different behavior once triggered by a specific condition) and research on AI models' capacity for strategic deception in controlled experimental settings. Anthropic has stated these are deliberately adversarial internal red-teaming exercises meant to understand worst-case behaviors, not descriptions of behavior seen in deployed products.
+
+Leadership
+
+Dario Amodei serves as CEO. Before co-founding Anthropic, he was Vice President of Research at OpenAI, where he was one of the lead authors on the GPT-2 and GPT-3 papers, and earlier worked at Google Brain and Baidu. Daniela Amodei serves as President and was previously Vice President of Safety and Policy at OpenAI. Jared Kaplan, a co-founder and the company's Chief Science Officer, is also a theoretical physicist by training and was a co-author of the "scaling laws" paper that influenced how the field thinks about the relationship between model size, data, and compute.
+
+Competitive Landscape
+
+Anthropic competes most directly with OpenAI, Google DeepMind, and Meta AI in the frontier large language model space, alongside smaller labs such as Mistral, Cohere, and xAI. Anthropic has generally positioned itself as the safety-focused alternative in this competition, favoring a slower, more deliberate release cadence and heavier publication of safety research relative to raw capability announcements, though the gap between labs on this dimension has narrowed over time as safety research has become more mainstream across the industry. Google and Amazon's roles as both investors and cloud infrastructure providers give Anthropic a somewhat different competitive position than a fully independent lab: it depends on continued goodwill and compute access from two companies that also run their own competing AI efforts (Google's Gemini family, Amazon's investments in other AI initiatives).
+
+Tool Use, Agents, and the Model Context Protocol
+
+Beyond conversational chat, Anthropic has invested heavily in making Claude usable as an agent that takes actions rather than only producing text. Tool use (function calling) lets a developer describe available tools to Claude, and Claude decides when to call them and with what arguments, mirroring the tool-calling pattern used throughout this internship's own tasks. Computer use, introduced experimentally alongside Claude 3.5 Sonnet's update, extended this further: Claude can view screenshots of a computer desktop and issue mouse clicks and keyboard input to operate software the way a human would, rather than requiring a purpose-built API integration for every application.
+
+The Model Context Protocol (MCP), released as an open standard in late 2024, addresses a related but distinct problem: rather than every developer writing custom glue code to connect a model to a database, a filesystem, a ticketing system, or any other external resource, MCP defines a standard client-server interface so that a single MCP-compatible tool or data source can be reused across many different AI applications without bespoke integration work each time. Anthropic has released reference MCP server implementations for common systems and encouraged both competitors and the broader developer ecosystem to adopt the protocol, positioning it as infrastructure for the AI industry generally rather than an Anthropic-only feature. Claude Code, Anthropic's terminal-based coding agent, is built on this same tool-use foundation: it can read and edit files, run shell commands, and interact with version control, all mediated through the same call-a-tool-and-get-a-result loop.
+
+Alignment and Safety Research Beyond Constitutional AI
+
+Constitutional AI and mechanistic interpretability are Anthropic's best-known safety research directions, but the company's safety work extends into several other areas. Anthropic has published research on scalable oversight — techniques for supervising AI systems that may eventually be more capable than the humans supervising them, including debate-style setups where two model instances argue opposing sides of a question in front of a human or model judge, and "weak-to-strong generalization" experiments testing whether a less capable model's supervision signal can still usefully train a more capable one. The company also conducts red-teaming exercises, both internally and via external partnerships, to probe models for jailbreaks, biased outputs, and capabilities that could be misused, feeding the results back into training and into the guardrails placed around deployed products.
+
+Anthropic has also published work specifically on evaluating whether models exhibit "situational awareness" (understanding that they are a model being evaluated or deployed, and potentially behaving differently as a result) and on automated auditing, where one model is used to probe another for hidden or undesired behaviors at a scale no human red-teaming team could match alone. These research threads are motivated by a concern the company has stated publicly: as models become more capable, purely human-driven safety evaluation may not scale fast enough, so part of the safety agenda is building AI-assisted safety tooling alongside the models themselves.
+
+Economic Impact and Workforce Research
+
+Anthropic has published research and commentary on the labor-market and economic effects of AI more broadly, including analysis of which occupations and tasks are most exposed to automation or augmentation by current-generation language models, drawing in part on aggregated, privacy-preserving data about how people actually use Claude across millions of conversations. The company has periodically released reports characterizing usage patterns — for example, which tasks are most commonly delegated to Claude (coding, writing, research, and administrative tasks feature prominently), and how usage differs between consumer and enterprise contexts. Anthropic has used this kind of research to argue for proactive policy attention to AI's labor market effects, positioning itself as a company that wants the transition it is helping cause to be managed thoughtfully rather than left purely to market forces.
+
+Note on currency of this document: This document was written from training knowledge with a cutoff around early 2025. Model names, product features, funding figures, and leadership details change frequently in a fast-moving company like Anthropic, so this document should be treated as a snapshot rather than a guaranteed-current source — which is exactly the kind of document a web-search validation tool is useful for checking against.

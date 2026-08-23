@@ -1,3 +1,8 @@
+# Local reference and working files (Claude project exports)
+INTERNSHIP_EXPORT.md
+PROJECT_DASHBOARD.md
+CLAUDE.md
+
 # Environment variables and secrets
 .env
 .env.local
